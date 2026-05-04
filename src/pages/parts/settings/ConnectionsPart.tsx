@@ -37,7 +37,6 @@ import { useAuthStore } from "@/stores/auth";
 import { usePreferencesStore } from "@/stores/preferences";
 import { useTraktStore } from "@/stores/trakt/store";
 
-
 interface ProxyEditProps {
   proxyUrls: string[] | null;
   setProxyUrls: Dispatch<SetStateAction<string[] | null>>;
