@@ -68,7 +68,9 @@ export function detectExtensionInstall(): ExtensionDetectionResult {
   // not a browser or failed to detect
   if (res?.type !== "browser") return "unknown";
 
-  if (res.name === "ios" || res.name === "ios-webview") return "ios";
+  // Treat iOS as unknown so Orion and other iOS browsers with extension support
+  // still get the normal extension page instead of the blocked iOS page
+  if (res.name === "ios" || res.name === "ios-webview") return "unknown";
   if (
     res.name === "chrome" ||
     res.name === "chromium-webview" ||
