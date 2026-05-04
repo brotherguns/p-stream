@@ -22,6 +22,32 @@ const isExtensionReady = new Promise<void>((resolve) => {
 
 let activeExtension = false;
 
+// Fallback messaging for browsers where Plasmo relay doesn't inject properly (e.g. Orion)
+function sendMessageViaWindow<Req, Res>(
+  message: string,
+  payload: Req | undefined,
+  timeout: number,
+): Promise<Res | null> {
+  return new Promise((resolve) => {
+    const id = `pstream-${message}-${Date.now()}-${Math.random()}`;
+    const timer = timeout >= 0 ? setTimeout(() => {
+      window.removeEventListener("message", handler);
+      resolve(null);
+    }, timeout) : null;
+
+    function handler(event: MessageEvent) {
+      if (event.source !== window) return;
+      if (event.data?.type !== `pstream-ext-response` || event.data?.id !== id) return;
+      window.removeEventListener("message", handler);
+      if (timer) clearTimeout(timer);
+      resolve(event.data.response as Res);
+    }
+
+    window.addEventListener("message", handler);
+    window.postMessage({ type: "pstream-ext-request", name: message, id, body: payload }, "*");
+  });
+}
+
 async function sendMessage<MessageKey extends keyof MessagesMetadata>(
   message: MessageKey,
   payload: MessagesMetadata[MessageKey]["req"] | undefined = undefined,
@@ -41,9 +67,19 @@ async function sendMessage<MessageKey extends keyof MessagesMetadata>(
         activeExtension = true;
         resolve(res);
       })
-      .catch(() => {
-        activeExtension = false;
-        resolve(null);
+      .catch(async () => {
+        // Plasmo relay failed — try window.postMessage fallback (Orion, etc.)
+        const fallback = await sendMessageViaWindow<
+          MessagesMetadata[MessageKey]["req"],
+          MessagesMetadata[MessageKey]["res"]
+        >(message, payload, timeout >= 0 ? timeout : 2000);
+        if (fallback) {
+          activeExtension = true;
+          resolve(fallback);
+        } else {
+          activeExtension = false;
+          resolve(null);
+        }
       });
   });
 }
