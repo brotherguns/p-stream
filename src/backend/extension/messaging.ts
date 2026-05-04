@@ -30,21 +30,33 @@ function sendMessageViaWindow<Req, Res>(
 ): Promise<Res | null> {
   return new Promise((resolve) => {
     const id = `pstream-${message}-${Date.now()}-${Math.random()}`;
-    const timer = timeout >= 0 ? setTimeout(() => {
-      window.removeEventListener("message", handler);
-      resolve(null);
-    }, timeout) : null;
 
-    function handler(event: MessageEvent) {
+    const handler = (event: MessageEvent) => {
       if (event.source !== window) return;
-      if (event.data?.type !== `pstream-ext-response` || event.data?.id !== id) return;
+      if (
+        event.data?.type !== "pstream-ext-response" ||
+        event.data?.id !== id
+      ) {
+        return;
+      }
       window.removeEventListener("message", handler);
       if (timer) clearTimeout(timer);
       resolve(event.data.response as Res);
-    }
+    };
+
+    const timer =
+      timeout >= 0
+        ? setTimeout(() => {
+            window.removeEventListener("message", handler);
+            resolve(null);
+          }, timeout)
+        : null;
 
     window.addEventListener("message", handler);
-    window.postMessage({ type: "pstream-ext-request", name: message, id, body: payload }, "*");
+    window.postMessage(
+      { type: "pstream-ext-request", name: message, id, body: payload },
+      "*",
+    );
   });
 }
 
