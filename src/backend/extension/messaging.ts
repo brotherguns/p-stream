@@ -30,6 +30,7 @@ function sendMessageViaWindow<Req, Res>(
 ): Promise<Res | null> {
   return new Promise((resolve) => {
     const id = `pstream-${message}-${Date.now()}-${Math.random()}`;
+    let timer: ReturnType<typeof setTimeout> | null = null;
 
     const handler = (event: MessageEvent) => {
       if (event.source !== window) return;
@@ -44,13 +45,12 @@ function sendMessageViaWindow<Req, Res>(
       resolve(event.data.response as Res);
     };
 
-    const timer =
-      timeout >= 0
-        ? setTimeout(() => {
-            window.removeEventListener("message", handler);
-            resolve(null);
-          }, timeout)
-        : null;
+    if (timeout >= 0) {
+      timer = setTimeout(() => {
+        window.removeEventListener("message", handler);
+        resolve(null);
+      }, timeout);
+    }
 
     window.addEventListener("message", handler);
     window.postMessage(
